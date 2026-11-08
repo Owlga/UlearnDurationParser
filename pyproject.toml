@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "UlearnDurationParser"
 version = "0.0.1"
-description = "Тут должно быть описание (я хочу стыбзить все настройки с питон тасок"
+description = "Невероятное описание Ulearn Duration Parser"
 authors = [
     "Owlga",
 ]
@@ -14,6 +14,8 @@ flake8 = "^7.5.0"
 isort = "^9.0.2"
 black = "^26.10.1"
 yt-dlp = "^2026.10.26"
+click = "^8.5.1"
+requests = "^2.34.2"
 
 [tool.black]
 line-length = 120

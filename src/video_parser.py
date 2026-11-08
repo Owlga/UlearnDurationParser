@@ -5,7 +5,7 @@ from typing import Any
 import requests
 import yt_dlp
 
-from constants import BASE_YT_URL, REQUEST_TIMEOUT, BASE_API_URL
+from constants import BASE_API_URL, BASE_YT_URL, REQUEST_TIMEOUT
 
 
 class YTDLPLogger:
@@ -79,9 +79,11 @@ class UrlBuilder:
             url += f'?hash={vk_hash}'
         return url
 
+
 @dataclass(frozen=True)
 class Block:
     """Один блок слайда. Нас интересуют только видео-поля."""
+
     video_id: str | None
     vk_id: str | None
     vk_oid: str | None
@@ -100,13 +102,16 @@ class Block:
     def has_video(self) -> bool:
         return bool(self.video_id or self.vk_id)
 
+
 class VideoInfo:
     """Класс для информации про одно видео"""
 
     def __init__(self, block: Block) -> None:
         self._yt_url = UrlBuilder.create_yt_url(block.video_id)
         self._vk_url = UrlBuilder.create_vk_url(
-            block.vk_id, block.vk_oid, block.vk_hash,
+            block.vk_id,
+            block.vk_oid,
+            block.vk_hash,
         )
 
     @property
@@ -128,6 +133,7 @@ class VideoInfo:
             return DurationParser.get_video_duration(self._vk_url)
 
         return 0
+
 
 def get_slide_duration_from_blocks(blocks: list[Block]) -> int:
     """Суммарная длительность видео по блокам слайда. Без сети."""

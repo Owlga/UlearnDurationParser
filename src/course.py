@@ -53,6 +53,7 @@ class Unit:
             slides=tuple(Slide.from_dict(s) for s in (raw.get("slides") or [])),
         )
 
+
 @dataclass(frozen=True)
 class Course:
     id: str
@@ -78,7 +79,7 @@ class CourseRepository:
         self._base_url = base_url.rstrip("/")
         self._session = session or requests.Session()
         self._timeout = timeout
-        self._courses_cache: list[CourseSummary] | None = None
+        self._courses_cache: list[CourseSummary] = []
         self._course_cache: dict[str, Course] = {}
 
     def _get_json(self, path: str) -> dict[str, Any]:
@@ -90,19 +91,22 @@ class CourseRepository:
         return data
 
     def get_courses_list(self) -> list[CourseSummary]:
-        if self._courses_cache is None:
+        if not self._courses_cache:
             data = self._get_json("/courses")
             self._courses_cache = [CourseSummary.from_dict(course) for course in (data.get("courses") or [])]
         return self._courses_cache
 
-    def get_course(self, course_id: str, api_url: str | None = None) -> Course:
+    def get_course(self, course_id: str, api_url: str | None = None) -> Course | None:
         if course_id not in self._course_cache:
             path = api_url or f"/courses/{course_id}"
             data = self._get_json(path)
-            self._course_cache[course_id] = Course.from_dict(data)
-        return self._course_cache[course_id]
+            if data:
+                self._course_cache[course_id] = Course.from_dict(data)
+        if course_id in self._course_cache:
+            return self._course_cache[course_id]
+        return None
 
-    def get_course_by_index(self, index: int) -> Course:
+    def get_course_by_index(self, index: int) -> Course | None:
         courses = self.get_courses_list()
         if not 0 <= index < len(courses):
             raise IndexError(f"Курс с индексом {index} не найден (всего {len(courses)})")
@@ -121,34 +125,32 @@ class CourseDurationService:
 
     def get_course_units_list(self, course_index: int) -> list[str]:
         course = self._repo.get_course_by_index(course_index)
-        return [f"[{index}] {unit.title}" for index, unit in enumerate(course.units)]
+        if course is not None:
+            return [unit.title for unit in course.units]
+        return []
 
     def get_unit_duration(self, course_index: int, unit_index: int) -> int:
         course = self._repo.get_course_by_index(course_index)
-        if not 0 <= unit_index < len(course.units):
-            raise IndexError(
-                f"Юнит с индексом {unit_index} не найден "
-                f"(всего {len(course.units)})"
-            )
-        return self._get_unit_duration(course.units[unit_index])
+        if course is not None:
+            if not 0 <= unit_index < len(course.units):
+                raise IndexError(f"Юнит с индексом {unit_index} не найден " f"(всего {len(course.units)})")
+            return self._get_unit_duration(course.units[unit_index])
+        return 0
 
     def get_course_duration(self, course_index: int) -> int:
         course = self._repo.get_course_by_index(course_index)
-        return sum(self._get_unit_duration(unit) for unit in course.units)
+        if course is not None:
+            return sum(self._get_unit_duration(unit) for unit in course.units)
+        return 0
 
     @staticmethod
     def _get_unit_duration(unit: Unit) -> int:
+        video_slides = [s for s in unit.slides if s.contains_video and s.api_url]
+        print(f"\nЮнит: {unit.title} (слайдов с видео: {len(video_slides)})")
         total = 0
-        for slide in unit.slides:
-            if not slide.contains_video or not slide.api_url:
-                continue
-            total += get_slide_duration_by_api_url(slide.api_url)
+        for i, slide in enumerate(video_slides, start=1):
+            print(f"  [{i}/{len(video_slides)}] {slide.title} ...", end=" ", flush=True)
+            duration = get_slide_duration_by_api_url(slide.api_url)
+            print(f"{duration} секунд")
+            total += duration
         return total
-
-# repo = CourseRepository()
-# courses = repo.get_courses_list()
-# service = CourseDurationService(repo)
-# d = service.get_course_units_list(1)
-# print(d)
-# data = service.get_unit_duration(1, 0)
-# print(data)
