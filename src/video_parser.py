@@ -1,10 +1,11 @@
 import re
+from dataclasses import dataclass
 from typing import Any
 
 import requests
 import yt_dlp
 
-from constants import BASE_YT_URL, REQUEST_TIMEOUT
+from constants import BASE_YT_URL, REQUEST_TIMEOUT, BASE_API_URL
 
 
 class YTDLPLogger:
@@ -65,7 +66,7 @@ class UrlBuilder:
     def create_yt_url(video_id: str | None) -> str | None:
         """Собираем URL для YT"""
         clean_id = UrlBuilder.clean_yt_id(video_id)
-        return f"{BASE_YT_URL.rstrip('/')}/{clean_id}" if clean_id else None
+        return f"{BASE_YT_URL.rstrip('/')}{clean_id}" if clean_id else None
 
     @staticmethod
     def create_vk_url(vk_id: str | None, vk_oid: str | None, vk_hash: str | None) -> str | None:
@@ -78,14 +79,35 @@ class UrlBuilder:
             url += f'?hash={vk_hash}'
         return url
 
+@dataclass(frozen=True)
+class Block:
+    """Один блок слайда. Нас интересуют только видео-поля."""
+    video_id: str | None
+    vk_id: str | None
+    vk_oid: str | None
+    vk_hash: str | None
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> Block:
+        return cls(
+            video_id=raw.get("videoId"),
+            vk_id=raw.get("vkId"),
+            vk_oid=raw.get("vkOid"),
+            vk_hash=raw.get("vkHash"),
+        )
+
+    @property
+    def has_video(self) -> bool:
+        return bool(self.video_id or self.vk_id)
 
 class VideoInfo:
     """Класс для информации про одно видео"""
 
-    def __init__(self, block: dict[str, Any]) -> None:
-        """Принимает json, собирает URL"""
-        self._yt_url = UrlBuilder.create_yt_url(block.get('videoId'))
-        self._vk_url = UrlBuilder.create_vk_url(block.get('vkId'), block.get('vkOid'), block.get('vkHash'))
+    def __init__(self, block: Block) -> None:
+        self._yt_url = UrlBuilder.create_yt_url(block.video_id)
+        self._vk_url = UrlBuilder.create_vk_url(
+            block.vk_id, block.vk_oid, block.vk_hash,
+        )
 
     @property
     def yt_url(self) -> str | None:
@@ -107,11 +129,15 @@ class VideoInfo:
 
         return 0
 
+def get_slide_duration_from_blocks(blocks: list[Block]) -> int:
+    """Суммарная длительность видео по блокам слайда. Без сети."""
+    return sum(VideoInfo(block).get_duration() for block in blocks if block.has_video)
+
 
 def get_slide_duration_by_api_url(api_url: str) -> int:
-    """Принимает API URL одного слайда, возвращает суммарную длительность видео на этом слайде"""
+    """Суммарная длительность видео на слайде."""
     try:
-        response = requests.get(api_url, timeout=REQUEST_TIMEOUT)
+        response = requests.get(BASE_API_URL + api_url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as e:
@@ -124,10 +150,6 @@ def get_slide_duration_by_api_url(api_url: str) -> int:
         print(f"Неожиданный ответ API {api_url}: {type(data)}")
         return 0
 
-    duration = 0
-    for block in data.get('blocks', []):
-        if not isinstance(block, dict):
-            continue
-        if block.get('videoId') or block.get('vkId'):
-            duration += VideoInfo(block).get_duration()
-    return duration
+    raw_blocks = data.get("blocks") or []
+    blocks = [Block.from_dict(b) for b in raw_blocks if isinstance(b, dict)]
+    return get_slide_duration_from_blocks(blocks)

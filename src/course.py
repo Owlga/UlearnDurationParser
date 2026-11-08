@@ -4,6 +4,7 @@ from typing import Any
 import requests
 
 from constants import BASE_API_URL, REQUEST_TIMEOUT
+from video_parser import get_slide_duration_by_api_url
 
 
 @dataclass(frozen=True)
@@ -49,9 +50,8 @@ class Unit:
         return cls(
             id=raw["id"],
             title=raw.get("title", ""),
-            slides=tuple(Slide.from_dict(s) for s in raw.get("slides", [])),
+            slides=tuple(Slide.from_dict(s) for s in (raw.get("slides") or [])),
         )
-
 
 @dataclass(frozen=True)
 class Course:
@@ -64,7 +64,7 @@ class Course:
         return cls(
             id=raw["id"],
             title=raw.get("title", ""),
-            units=tuple(Unit.from_dict(u) for u in raw.get("units", [])),
+            units=tuple(Unit.from_dict(u) for u in (raw.get("units") or [])),
         )
 
 
@@ -92,7 +92,7 @@ class CourseRepository:
     def get_courses_list(self) -> list[CourseSummary]:
         if self._courses_cache is None:
             data = self._get_json("/courses")
-            self._courses_cache = [CourseSummary.from_dict(course) for course in data.get("courses", [])]
+            self._courses_cache = [CourseSummary.from_dict(course) for course in (data.get("courses") or [])]
         return self._courses_cache
 
     def get_course(self, course_id: str, api_url: str | None = None) -> Course:
@@ -108,3 +108,47 @@ class CourseRepository:
             raise IndexError(f"Курс с индексом {index} не найден (всего {len(courses)})")
         summary = courses[index]
         return self.get_course(summary.id, summary.api_url)
+
+
+class CourseDurationService:
+    """Длительности видео: по юниту и по всему курсу."""
+
+    def __init__(self, repo: CourseRepository) -> None:
+        self._repo = repo
+
+    def get_courses_list(self) -> list[CourseSummary]:
+        return self._repo.get_courses_list()
+
+    def get_course_units_list(self, course_index: int) -> list[str]:
+        course = self._repo.get_course_by_index(course_index)
+        return [f"[{index}] {unit.title}" for index, unit in enumerate(course.units)]
+
+    def get_unit_duration(self, course_index: int, unit_index: int) -> int:
+        course = self._repo.get_course_by_index(course_index)
+        if not 0 <= unit_index < len(course.units):
+            raise IndexError(
+                f"Юнит с индексом {unit_index} не найден "
+                f"(всего {len(course.units)})"
+            )
+        return self._get_unit_duration(course.units[unit_index])
+
+    def get_course_duration(self, course_index: int) -> int:
+        course = self._repo.get_course_by_index(course_index)
+        return sum(self._get_unit_duration(unit) for unit in course.units)
+
+    @staticmethod
+    def _get_unit_duration(unit: Unit) -> int:
+        total = 0
+        for slide in unit.slides:
+            if not slide.contains_video or not slide.api_url:
+                continue
+            total += get_slide_duration_by_api_url(slide.api_url)
+        return total
+
+# repo = CourseRepository()
+# courses = repo.get_courses_list()
+# service = CourseDurationService(repo)
+# d = service.get_course_units_list(1)
+# print(d)
+# data = service.get_unit_duration(1, 0)
+# print(data)
