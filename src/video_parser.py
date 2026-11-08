@@ -4,7 +4,7 @@ from typing import Any
 import requests
 import yt_dlp
 
-from constants import BASE_YT_URL
+from constants import BASE_YT_URL, REQUEST_TIMEOUT
 
 
 class YTDLPLogger:
@@ -111,7 +111,7 @@ class VideoInfo:
 def get_slide_duration_by_api_url(api_url: str) -> int:
     """Принимает API URL одного слайда, возвращает суммарную длительность видео на этом слайде"""
     try:
-        response = requests.get(api_url, timeout=10)
+        response = requests.get(api_url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as e:
