@@ -13,6 +13,7 @@ mypy = "^2.4.1"
 flake8 = "^7.5.0"
 isort = "^9.0.2"
 black = "^26.10.1"
+yt-dlp = "^2026.10.26"
 
 [tool.black]
 line-length = 120
