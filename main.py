@@ -26,6 +26,7 @@ def cli() -> None:
 
 @cli.command("courses")
 def list_courses() -> None:
+    """Список всех курсов на платформе"""
     service = get_service()
     try:
         courses = service.get_courses_list()
@@ -40,7 +41,7 @@ def list_courses() -> None:
 @cli.command("units")
 @click.argument("course_index", type=int)
 def list_units(course_index: int) -> None:
-    """Показать юниты курса по индексу COURSE_INDEX."""
+    """Список юнитов курса по индексу COURSE_INDEX."""
     service = get_service()
     try:
         units = service.get_course_units_list(course_index)

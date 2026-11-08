@@ -1,21 +1,34 @@
 [tool.poetry]
-name = "UlearnDurationParser"
-version = "0.0.1"
-description = "Невероятное описание Ulearn Duration Parser"
-authors = [
-    "Owlga",
+name = "ulearn-duration-parser"
+version = "0.1.0"
+description = "CLI для подсчёта длительности видео на курсах ulearn.me"
+authors = ["Owlga"]
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/Owlga/UlearnDurationParser/"
+keywords = ["ulearn", "cli", "video", "duration"]
+
+packages = [
+    { include = "main.py" },
+    { include = "course.py" },
+    { include = "video_parser.py" },
+    { include = "constants.py" },
 ]
-package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.12"
+python = ">=3.11"
+yt-dlp = "^2026.10.26"
+click = "^8.5.1"
+requests = "^2.34.2"
+
+[tool.poetry.group.dev.dependencies]
 mypy = "^2.4.1"
 flake8 = "^7.5.0"
 isort = "^9.0.2"
 black = "^26.10.1"
-yt-dlp = "^2026.10.26"
-click = "^8.5.1"
-requests = "^2.34.2"
+
+[tool.poetry.scripts]
+ulearn = "main:cli"
 
 [tool.black]
 line-length = 120
