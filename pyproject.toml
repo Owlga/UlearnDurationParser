@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "UlearnDurationParser"
+version = "0.0.1"
+description = "Тут должно быть описание (я хочу стыбзить все настройки с питон тасок"
+authors = [
+    "Owlga",
+]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+mypy = "^2.4.1"
+flake8 = "^7.5.0"
+isort = "^9.0.2"
+black = "^26.10.1"
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+skip-string-normalization = true
